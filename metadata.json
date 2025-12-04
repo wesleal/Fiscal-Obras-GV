@@ -1,0 +1,8 @@
+{
+  "name": "Copy of Copy of Copy of Sistema de Gestão de Fiscalização Municipal",
+  "description": "Um aplicativo para gerenciar chamados, relatórios e retornos de fiscalizações de obras e atividades urbanas para o município de Governador Valadares-MG. Inclui relatórios fotográficos, relatórios escritos e agendamento de retornos.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
