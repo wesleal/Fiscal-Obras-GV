@@ -5,6 +5,8 @@ import { InspectionSource, InspectionType } from '../types';
 import type { Inspection, Attachment, User } from '../types';
 import { Button } from './ui/Button';
 import { Icon } from './ui/Icon';
+import { uploadFoto } from '../services/upload';
+import { supabase } from '../src/lib/supabase';
 
 interface NewInspectionModalProps {
     onClose: () => void;
@@ -70,9 +72,62 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({ onClose,
         setAttachments(prev => prev.filter(file => file !== fileToRemove));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSaving(true);
+   const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsSaving(true);
+
+  try {
+    // 1. Upload das fotos para o Supabase
+    const uploadedUrls = await Promise.all(
+      attachments.map((file) => uploadFoto(file))
+    );
+
+    // Seleciona a primeira foto válida (caso exista)
+    const fotoUrl = uploadedUrls.filter((u) => u !== null)[0] ?? null;
+
+    // 2. Salva dados mínimos da fiscalização no Supabase
+    const { error } = await supabase
+      .from('fiscalizacoes')
+      .insert({
+        observacao: formData.description,
+        foto_url: fotoUrl,
+        endereco: formData.address,
+        reclamante_nome: formData.complainantName,
+        reclamado_nome: formData.respondentName,
+      });
+
+    if (error) {
+      console.error('Erro ao salvar no Supabase:', error);
+      alert('Erro ao salvar no banco de dados.');
+      return;
+    }
+
+    // 3. Fluxo original da interface (base64 + inspectionService)
+    const processedAttachments: Attachment[] = await Promise.all(
+      attachments.map(async (file) => ({
+        name: file.name,
+        type: file.type,
+        data: await fileToBase64(file),
+      }))
+    );
+
+    const newInspectionData = {
+      ...formData,
+      attachments: processedAttachments,
+    };
+
+    const createdInspection = await inspectionService.createInspection(
+      newInspectionData,
+      currentUser
+    );
+
+    onInspectionCreated(createdInspection);
+    onClose(); // fecha modal ao finalizar
+  } finally {
+    setIsSaving(false);
+  }
+};
+
 
         const processedAttachments: Attachment[] = await Promise.all(
             attachments.map(async (file) => ({
